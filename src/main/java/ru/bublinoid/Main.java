@@ -4,68 +4,68 @@ import ru.bublinoid.parser.TlvParser;
 import ru.bublinoid.entity.TlvStructure;
 import ru.bublinoid.printer.TlvPrinter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+/**
+ * Main class for processing .hex files in a specified directory.
+ * This class handles file reading, TLV parsing, and printing the results.
+ */
 public class Main {
-    public static void main(String[] args) {
-        // Определение директории и соответствующих расширений файлов
-        String dataDirectory = "src/main/resources/data";
-        String refDirectory = "src/main/resources/ref";
 
-        // Создание экземпляров TlvParser и TlvPrinter
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
+    /**
+     * Main entry point of the application.
+     *
+     * @param args command line arguments (not used)
+     */
+    public static void main(String[] args) {
+        String dataDirectory = "src/main/resources/data";
         TlvParser parser = new TlvParser();
         TlvPrinter printer = new TlvPrinter();
-
-        // Обработка файлов с расширением .hex в директории data
-        processFilesInDirectory(dataDirectory, ".hex", parser, printer);
-
-        // Обработка файлов с расширением .out в директории ref
-        processFilesInDirectory(refDirectory, ".out", parser, printer);
+        processFilesInDirectory(dataDirectory, parser, printer);
     }
 
     /**
-     * Обрабатывает файлы в заданной директории с определенным расширением.
+     * Processes all .hex files in the specified directory.
      *
-     * @param directory Путь к директории
-     * @param fileExtension Расширение файлов для обработки
-     * @param parser Экземпляр TlvParser для обработки файла
-     * @param printer Экземпляр TlvPrinter для вывода
+     * @param directory the directory containing .hex files
+     * @param parser    the TlvParser instance for parsing files
+     * @param printer   the TlvPrinter instance for printing results
      */
-    private static void processFilesInDirectory(String directory, String fileExtension, TlvParser parser, TlvPrinter printer) {
-        try {
-            Files.list(Paths.get(directory))
-                    .filter(path -> path.toString().endsWith(fileExtension))
+    private static void processFilesInDirectory(String directory, TlvParser parser, TlvPrinter printer) {
+        Path dirPath = Paths.get(directory);
+        try (var stream = Files.list(dirPath)) {
+            stream
+                    .filter(path -> path.toString().endsWith(".hex"))
                     .forEach(path -> processFile(path, parser, printer));
         } catch (IOException e) {
-            System.err.println("Error accessing files in directory: " + directory + " - " + e.getMessage());
+            logger.error("Error accessing files in directory: {} - {}", directory, e.getMessage());
         }
     }
 
     /**
-     * Обработка одного файла: чтение, парсинг и вывод TLV-структур.
+     * Processes a single .hex file.
      *
-     * @param path Путь к файлу
-     * @param parser Экземпляр TlvParser для обработки файла
-     * @param printer Экземпляр TlvPrinter для вывода
+     * @param path    the path to the .hex file
+     * @param parser  the TlvParser instance for parsing the file
+     * @param printer the TlvPrinter instance for printing the results
      */
     private static void processFile(Path path, TlvParser parser, TlvPrinter printer) {
-        System.out.println("Processing file: " + path.getFileName());
-
+        logger.info("Processing file: {}", path.getFileName());
         try {
-            // Чтение файла и преобразование его содержимого в массив байтов
             byte[] data = parser.readHexFile(path.toString());
-
-            // Парсинг TLV-структур из массива байтов
             List<TlvStructure> tlvStructures = parser.parseTlv(data);
-
-            // Вывод распарсенных TLV-структур на экран
             printer.printTlv(tlvStructures);
         } catch (IOException e) {
-            System.err.println("Error reading file " + path.getFileName() + ": " + e.getMessage());
+            logger.error("Error reading file {}: {}", path.getFileName(), e.getMessage());
         }
     }
 }
