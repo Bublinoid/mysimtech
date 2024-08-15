@@ -24,4 +24,16 @@ public class TlvStructure {
         }
         return sb.toString();
     }
+
+    public int getTagClass() {
+        return (tag >> 6) & 0x03;
+    }
+
+    public int getTagType() {
+        return (tag >> 5) & 0x01;
+    }
+
+    public int getTagNumber() {
+        return tag & 0x1F;
+    }
 }

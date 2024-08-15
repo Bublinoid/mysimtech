@@ -22,9 +22,9 @@ public class TlvPrinter {
         String indent = "  ".repeat(level); // Отступ для текущего уровня
 
         for (TlvStructure tlv : tlvStructures) {
-            String tagClass = getClassDescription(tlv.getTag());
-            String tagType = getTypeDescription(tlv.getTag());
-            int tagId = getTagId(tlv.getTag());
+            String tagClass = getClassDescription(tlv.getTagClass());
+            String tagType = getTypeDescription(tlv.getTagType());
+            int tagId = tlv.getTagNumber();
 
             System.out.printf("%sTag (class: %s, type: %s, id: %d) [%02X]%n",
                     indent, tagClass, tagType, tagId, tlv.getTag());
@@ -32,7 +32,7 @@ public class TlvPrinter {
             System.out.printf("%sValue: %s%n", indent, bytesToHex(tlv.getValue()));
 
             // Если TLV конструкция (type = constructed), распарсим вложенные TLV
-            if (isConstructed(tlv.getTag())) {
+            if (tlv.getTagType() == 1) {
                 TlvParser nestedParser = new TlvParser();
                 List<TlvStructure> nestedTlv = nestedParser.parseTlv(tlv.getValue());
                 printTlv(nestedTlv, level + 1); // Рекурсия для вложенных TLV
@@ -40,8 +40,7 @@ public class TlvPrinter {
         }
     }
 
-    private String getClassDescription(int tag) {
-        int tagClass = (tag >> 6) & 0x03;
+    private String getClassDescription(int tagClass) {
         return switch (tagClass) {
             case 0 -> "Universal";
             case 1 -> "Application";
@@ -51,18 +50,8 @@ public class TlvPrinter {
         };
     }
 
-    private String getTypeDescription(int tag) {
-        int tagType = (tag >> 5) & 0x01;
+    private String getTypeDescription(int tagType) {
         return tagType == 0 ? "Primitive" : "Constructed";
-    }
-
-    private int getTagId(int tag) {
-        return tag & 0x1F;
-    }
-
-    private boolean isConstructed(int tag) {
-        int tagType = (tag >> 5) & 0x01;
-        return tagType == 1;
     }
 
     private String bytesToHex(byte[] bytes) {

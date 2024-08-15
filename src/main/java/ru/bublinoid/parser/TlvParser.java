@@ -16,7 +16,7 @@ public class TlvParser {
         return hexStringToByteArray(hexString);
     }
 
-    private byte[] hexStringToByteArray(String s) {
+    public byte[] hexStringToByteArray(String s) {
         int len = s.length();
         if (len % 2 != 0) {
             throw new IllegalArgumentException("Invalid hex string: uneven length.");
@@ -34,30 +34,26 @@ public class TlvParser {
         List<TlvStructure> tlvStructures = new ArrayList<>();
         int index = 0;
 
-        try {
-            while (index < data.length) {
-                int[] tagInfo = parseTag(data, index);
-                int tag = tagInfo[0];
-                int tagLength = tagInfo[1];
-                index += tagLength;
+        while (index < data.length) {
+            int[] tagInfo = parseTag(data, index);
+            int tag = tagInfo[0];
+            int tagLength = tagInfo[1];
+            index += tagLength;
 
-                int[] lengthInfo = parseLength(data, index);
-                int length = lengthInfo[0];
-                int lengthLength = lengthInfo[1];
-                index += lengthLength;
+            int[] lengthInfo = parseLength(data, index);
+            int length = lengthInfo[0];
+            int lengthLength = lengthInfo[1];
+            index += lengthLength;
 
-                if (index + length > data.length) {
-                    throw new RuntimeException("Length of TLV value exceeds available data.");
-                }
-
-                byte[] value = new byte[length];
-                System.arraycopy(data, index, value, 0, length);
-                index += length;
-
-                tlvStructures.add(new TlvStructure(tag, length, value));
+            if (index + length > data.length) {
+                throw new RuntimeException("Length of TLV value exceeds available data.");
             }
-        } catch (RuntimeException e) {
-            throw new RuntimeException("Error while parsing TLV structure: " + e.getMessage(), e);
+
+            byte[] value = new byte[length];
+            System.arraycopy(data, index, value, 0, length);
+            index += length;
+
+            tlvStructures.add(new TlvStructure(tag, length, value));
         }
 
         return tlvStructures;
@@ -65,8 +61,6 @@ public class TlvParser {
 
     private int[] parseTag(byte[] data, int index) {
         int tag = data[index] & 0xFF;
-        int tagClass = (tag >> 6) & 0x03;
-        int tagType = (tag >> 5) & 0x01;
         int tagNumber = tag & 0x1F;
 
         int tagLength = 1;
@@ -74,15 +68,12 @@ public class TlvParser {
             tagNumber = 0;
             do {
                 tagLength++;
-                if (index + tagLength > data.length) {
-                    throw new RuntimeException("Incomplete multi-byte tag in TLV.");
-                }
                 tag = data[index + tagLength - 1] & 0xFF;
                 tagNumber = (tagNumber << 7) | (tag & 0x7F);
             } while ((tag & 0x80) != 0);
         }
 
-        return new int[]{(tagClass << 24) | (tagType << 23) | tagNumber, tagLength};
+        return new int[]{tag, tagLength};
     }
 
     private int[] parseLength(byte[] data, int index) {
@@ -92,9 +83,6 @@ public class TlvParser {
             return new int[]{length, 1}; // Короткая форма
         } else {
             int lengthOfLength = length & 0x7F;
-            if (index + lengthOfLength >= data.length) {
-                throw new RuntimeException("Incomplete length field in TLV.");
-            }
             length = 0;
             for (int i = 0; i < lengthOfLength; i++) {
                 length = (length << 8) | (data[index + i + 1] & 0xFF);
