@@ -8,14 +8,31 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A class for parsing TLV (Tag-Length-Value) encoded data.
+ */
 public class TlvParser {
 
+    /**
+     * Reads a hex-encoded file and converts it to a byte array.
+     *
+     * @param filePath The path to the hex-encoded file.
+     * @return A byte array containing the data from the file.
+     * @throws IOException If an I/O error occurs while reading the file.
+     */
     public byte[] readHexFile(String filePath) throws IOException {
         String hexString = Files.readString(Path.of(filePath))
-                .replaceAll("\\s+", ""); // Удаление пробельных символов
+                .replaceAll("\\s+", ""); // Remove whitespace
         return hexStringToByteArray(hexString);
     }
 
+    /**
+     * Converts a hexadecimal string to a byte array.
+     *
+     * @param s The hexadecimal string.
+     * @return A byte array representing the hexadecimal string.
+     * @throws IllegalArgumentException If the hex string has an uneven length.
+     */
     public byte[] hexStringToByteArray(String s) {
         int len = s.length();
         if (len % 2 != 0) {
@@ -30,6 +47,13 @@ public class TlvParser {
         return data;
     }
 
+    /**
+     * Parses a TLV (Tag-Length-Value) encoded byte array into a list of {@link TlvStructure} objects.
+     *
+     * @param data The byte array containing TLV encoded data.
+     * @return A list of {@link TlvStructure} objects parsed from the byte array.
+     * @throws RuntimeException If the length of a TLV value exceeds the available data.
+     */
     public List<TlvStructure> parseTlv(byte[] data) {
         List<TlvStructure> tlvStructures = new ArrayList<>();
         int index = 0;
@@ -59,12 +83,19 @@ public class TlvParser {
         return tlvStructures;
     }
 
+    /**
+     * Parses the tag from a byte array starting at the specified index.
+     *
+     * @param data The byte array containing TLV encoded data.
+     * @param index The starting index for parsing the tag.
+     * @return An array containing the tag value and the number of bytes used to encode the tag.
+     */
     private int[] parseTag(byte[] data, int index) {
         int tag = data[index] & 0xFF;
         int tagNumber = tag & 0x1F;
 
         int tagLength = 1;
-        if (tagNumber == 0x1F) { // Мультибайтный тег
+        if (tagNumber == 0x1F) { // Multi-byte tag
             tagNumber = 0;
             do {
                 tagLength++;
@@ -76,18 +107,25 @@ public class TlvParser {
         return new int[]{tag, tagLength};
     }
 
+    /**
+     * Parses the length field from a byte array starting at the specified index.
+     *
+     * @param data The byte array containing TLV encoded data.
+     * @param index The starting index for parsing the length field.
+     * @return An array containing the length value and the number of bytes used to encode the length.
+     */
     private int[] parseLength(byte[] data, int index) {
         int length = data[index] & 0xFF;
 
         if (length <= 0x7F) {
-            return new int[]{length, 1}; // Короткая форма
+            return new int[]{length, 1}; // Short form
         } else {
             int lengthOfLength = length & 0x7F;
             length = 0;
             for (int i = 0; i < lengthOfLength; i++) {
                 length = (length << 8) | (data[index + i + 1] & 0xFF);
             }
-            return new int[]{length, lengthOfLength + 1}; // Длинная форма
+            return new int[]{length, lengthOfLength + 1}; // Long form
         }
     }
 }
