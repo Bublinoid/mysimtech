@@ -1,7 +1,5 @@
 package ru.bublinoid.parser;
 
-
-
 import ru.bublinoid.entity.TlvStructure;
 
 import java.io.IOException;
@@ -10,67 +8,56 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Класс для обработки и парсинга TLV-структур.
- */
 public class TlvParser {
 
-    /**
-     * Читает файл, закодированный в ASCII-шестнадцатеричном формате, и преобразует его в массив байтов.
-     * @param filePath путь к файлу
-     * @return массив байтов, содержащий данные из файла
-     * @throws IOException если файл не удается прочитать
-     */
     public byte[] readHexFile(String filePath) throws IOException {
         String hexString = Files.readString(Path.of(filePath))
-                .replaceAll("\\s+", "");
+                .replaceAll("\\s+", ""); // Удаление пробельных символов
         return hexStringToByteArray(hexString);
     }
 
-    /**
-     * Преобразует строку в шестнадцатеричном формате в массив байтов.
-     * @param s строка в шестнадцатеричном формате
-     * @return массив байтов
-     */
     private byte[] hexStringToByteArray(String s) {
         int len = s.length();
+        if (len % 2 != 0) {
+            throw new IllegalArgumentException("Invalid hex string: uneven length.");
+        }
+
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
             data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                    + Character.digit(s.charAt(i+1), 16));
+                    + Character.digit(s.charAt(i + 1), 16));
         }
         return data;
     }
 
-    /**
-     * Парсит данные в формате TLV.
-     * @param data массив байтов с данными
-     * @return список структур TLV
-     */
     public List<TlvStructure> parseTlv(byte[] data) {
         List<TlvStructure> tlvStructures = new ArrayList<>();
         int index = 0;
 
-        while (index < data.length) {
-            // Парсим тег
-            int[] tagInfo = parseTag(data, index);
-            int tag = tagInfo[0];
-            int tagLength = tagInfo[1];
-            index += tagLength;
+        try {
+            while (index < data.length) {
+                int[] tagInfo = parseTag(data, index);
+                int tag = tagInfo[0];
+                int tagLength = tagInfo[1];
+                index += tagLength;
 
-            // Парсим длину
-            int[] lengthInfo = parseLength(data, index);
-            int length = lengthInfo[0];
-            int lengthLength = lengthInfo[1];
-            index += lengthLength;
+                int[] lengthInfo = parseLength(data, index);
+                int length = lengthInfo[0];
+                int lengthLength = lengthInfo[1];
+                index += lengthLength;
 
-            // Извлечение значения
-            byte[] value = new byte[length];
-            System.arraycopy(data, index, value, 0, length);
-            index += length;
+                if (index + length > data.length) {
+                    throw new RuntimeException("Length of TLV value exceeds available data.");
+                }
 
-            // Добавление структуры в список
-            tlvStructures.add(new TlvStructure(tag, length, value));
+                byte[] value = new byte[length];
+                System.arraycopy(data, index, value, 0, length);
+                index += length;
+
+                tlvStructures.add(new TlvStructure(tag, length, value));
+            }
+        } catch (RuntimeException e) {
+            throw new RuntimeException("Error while parsing TLV structure: " + e.getMessage(), e);
         }
 
         return tlvStructures;
@@ -87,6 +74,9 @@ public class TlvParser {
             tagNumber = 0;
             do {
                 tagLength++;
+                if (index + tagLength > data.length) {
+                    throw new RuntimeException("Incomplete multi-byte tag in TLV.");
+                }
                 tag = data[index + tagLength - 1] & 0xFF;
                 tagNumber = (tagNumber << 7) | (tag & 0x7F);
             } while ((tag & 0x80) != 0);
@@ -102,21 +92,14 @@ public class TlvParser {
             return new int[]{length, 1}; // Короткая форма
         } else {
             int lengthOfLength = length & 0x7F;
+            if (index + lengthOfLength >= data.length) {
+                throw new RuntimeException("Incomplete length field in TLV.");
+            }
             length = 0;
             for (int i = 0; i < lengthOfLength; i++) {
                 length = (length << 8) | (data[index + i + 1] & 0xFF);
             }
             return new int[]{length, lengthOfLength + 1}; // Длинная форма
-        }
-    }
-
-    /**
-     * Выводит данные TLV на экран.
-     * @param tlvStructures список структур TLV для вывода
-     */
-    public void printTlv(List<TlvStructure> tlvStructures) {
-        for (TlvStructure tlv : tlvStructures) {
-            System.out.println(tlv);
         }
     }
 }
