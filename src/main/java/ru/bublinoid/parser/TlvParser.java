@@ -25,7 +25,7 @@ public class TlvParser {
      */
     public byte[] readHexFile(String filePath) throws IOException {
         String hexString = Files.readString(Path.of(filePath))
-                .replaceAll("\\s+", ""); // Remove whitespace
+                .replaceAll("\\s+", "");
         return hexStringToByteArray(hexString);
     }
 
@@ -110,7 +110,7 @@ public class TlvParser {
         int tagNumber = tag & 0x1F;
         int tagLength = 1;
 
-        if (tagNumber == 0x1F) {  // Multi-byte tag
+        if (tagNumber == 0x1F) {
             tagNumber = 0;
             do {
                 if (index + tagLength >= data.length) {
@@ -136,14 +136,14 @@ public class TlvParser {
         int length = data[index] & 0xFF;
 
         if (length <= 0x7F) {
-            return new int[]{length, 1}; // Short form
+            return new int[]{length, 1};
         } else {
             int lengthOfLength = length & 0x7F;
             length = 0;
             for (int i = 0; i < lengthOfLength; i++) {
                 length = (length << 8) | (data[index + i + 1] & 0xFF);
             }
-            return new int[]{length, lengthOfLength + 1}; // Long form
+            return new int[]{length, lengthOfLength + 1};
         }
     }
 }

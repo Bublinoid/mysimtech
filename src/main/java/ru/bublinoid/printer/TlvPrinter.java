@@ -13,7 +13,6 @@ public class TlvPrinter {
 
     private static final Logger logger = Logger.getLogger(TlvPrinter.class.getName());
 
-    // ANSI escape codes for color output
     private static final String ANSI_RESET = "\u001B[0m";
     private static final String ANSI_RED = "\u001B[31m";
     private static final String ANSI_GREEN = "\u001B[32m";
@@ -37,7 +36,7 @@ public class TlvPrinter {
      * @param tlvCounter    An array to keep track of TLV numbers at each nesting level.
      */
     private void printTlv(List<TlvStructure> tlvStructures, int level, int[] tlvCounter) {
-        String indent = "    ".repeat(level); // Отступы на основе уровня вложенности
+        String indent = "    ".repeat(level);
 
         for (TlvStructure tlv : tlvStructures) {
             String tagClass = getClassDescription(tlv.getTagClass());
@@ -53,21 +52,19 @@ public class TlvPrinter {
 
             if (tlv.getLength() > 0) {
                 if (tlv.getTagType() == 1) {
-                    // Если TLV конструктивный (constructed), выводим количество вложенных TLV
                     TlvParser nestedParser = new TlvParser();
                     List<TlvStructure> nestedTlv = nestedParser.parseTlv(tlv.getValue());
                     logger.info(String.format("%s%s Value: (%d TLVs)%s", indent, ANSI_RED, nestedTlv.size(), ANSI_RESET));
-                    tlvCounter[level + 1] = 1; // Инициализируем счетчик для вложенного уровня
-                    printTlv(nestedTlv, level + 1, tlvCounter); // Рекурсивный вывод вложенных TLV
+                    tlvCounter[level + 1] = 1;
+                    printTlv(nestedTlv, level + 1, tlvCounter);
                 } else {
-                    // Для примитивных TLV отображаем значение
                     logger.info(String.format("%s%s Value: [%s]%s", indent, ANSI_BLUE, bytesToHex(tlv.getValue()), ANSI_RESET));
                 }
             } else {
-                logger.info(String.format("%s%s Value: []%s", indent, ANSI_RED, ANSI_RESET)); // Пустое значение для длины 0
+                logger.info(String.format("%s%s Value: []%s", indent, ANSI_RED, ANSI_RESET));
             }
 
-            tlvCounter[level]++; // Увеличиваем счетчик для текущего уровня
+            tlvCounter[level]++;
         }
     }
 
