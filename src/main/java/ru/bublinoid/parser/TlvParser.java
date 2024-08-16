@@ -7,18 +7,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * A class for parsing TLV (Tag-Length-Value) encoded data.
  */
 public class TlvParser {
 
+    private static final Logger logger = Logger.getLogger(String.valueOf(TlvParser.class));
+
     /**
      * Reads a hex-encoded file and converts it to a byte array.
      *
-     * @param filePath The path to the hex-encoded file.
-     * @return A byte array containing the data from the file.
-     * @throws IOException If an I/O error occurs while reading the file.
+     * @param filePath
+     * @return A byte array
+     * @throws IOException
      */
     public byte[] readHexFile(String filePath) throws IOException {
         String hexString = Files.readString(Path.of(filePath))
@@ -29,9 +32,9 @@ public class TlvParser {
     /**
      * Converts a hexadecimal string to a byte array.
      *
-     * @param s The hexadecimal string.
+     * @param s
      * @return A byte array representing the hexadecimal string.
-     * @throws IllegalArgumentException If the hex string has an uneven length.
+     * @throws IllegalArgumentException
      */
     public byte[] hexStringToByteArray(String s) {
         int len = s.length();
@@ -59,25 +62,33 @@ public class TlvParser {
         int index = 0;
 
         while (index < data.length) {
-            int[] tagInfo = parseTag(data, index);
-            int tag = tagInfo[0];
-            int tagLength = tagInfo[1];
-            index += tagLength;
+            try {
 
-            int[] lengthInfo = parseLength(data, index);
-            int length = lengthInfo[0];
-            int lengthLength = lengthInfo[1];
-            index += lengthLength;
 
-            if (index + length > data.length) {
-                throw new RuntimeException("Length of TLV value exceeds available data.");
+                int[] tagInfo = parseTag(data, index);
+                int tag = tagInfo[0];
+                int tagLength = tagInfo[1];
+                index += tagLength;
+
+                int[] lengthInfo = parseLength(data, index);
+                int length = lengthInfo[0];
+                int lengthLength = lengthInfo[1];
+                index += lengthLength;
+
+                if (index + length > data.length) {
+                    throw new RuntimeException("Length of TLV value exceeds available data.");
+                }
+
+                byte[] value = new byte[length];
+                System.arraycopy(data, index, value, 0, length);
+                index += length;
+
+                tlvStructures.add(new TlvStructure(tag, length, value));
+            } catch (IllegalArgumentException e) {
+                logger.severe("Error parsing TLV at index " + index + ": " + e.getMessage());
+                break;
             }
 
-            byte[] value = new byte[length];
-            System.arraycopy(data, index, value, 0, length);
-            index += length;
-
-            tlvStructures.add(new TlvStructure(tag, length, value));
         }
 
         return tlvStructures;
@@ -86,18 +97,25 @@ public class TlvParser {
     /**
      * Parses the tag from a byte array starting at the specified index.
      *
-     * @param data The byte array containing TLV encoded data.
-     * @param index The starting index for parsing the tag.
-     * @return An array containing the tag value and the number of bytes used to encode the tag.
+     * @param data
+     * @param index
+     * @return An array
      */
     private int[] parseTag(byte[] data, int index) {
+        if (index >= data.length) {
+            throw new IllegalArgumentException("Invalid index: exceeds data length");
+        }
+
         int tag = data[index] & 0xFF;
         int tagNumber = tag & 0x1F;
-
         int tagLength = 1;
-        if (tagNumber == 0x1F) { // Multi-byte tag
+
+        if (tagNumber == 0x1F) {  // Multi-byte tag
             tagNumber = 0;
             do {
+                if (index + tagLength >= data.length) {
+                    throw new IllegalArgumentException("Invalid multi-byte tag at index " + index);
+                }
                 tagLength++;
                 tag = data[index + tagLength - 1] & 0xFF;
                 tagNumber = (tagNumber << 7) | (tag & 0x7F);
