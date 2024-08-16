@@ -7,48 +7,67 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * A class for formatting and printing TLV (Tag-Length-Value) structures.
+ * A class for formatting and printing TLV (Tag-Length-Value) structures with color output in the console.
  */
 public class TlvPrinter {
 
     private static final Logger logger = Logger.getLogger(TlvPrinter.class.getName());
 
+    // ANSI escape codes for color output
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_RED = "\u001B[31m";
+    private static final String ANSI_GREEN = "\u001B[32m";
+    private static final String ANSI_BLUE = "\u001B[34m";
+    private static final String ANSI_YELLOW = "\u001B[33m";
+
     /**
-     * Prints the TLV data to the console with annotations and nesting levels.
+     * Prints the TLV data to the console with annotations, nesting levels, and color.
      *
      * @param tlvStructures The list of TLV structures to print.
      */
     public void printTlv(List<TlvStructure> tlvStructures) {
-        printTlv(tlvStructures, 0);
+        printTlv(tlvStructures, 0, new int[20]);
     }
 
     /**
-     * Recursively prints the TLV structures with indentation based on nesting level.
+     * Recursively prints the TLV structures with indentation and color based on nesting level.
      *
      * @param tlvStructures The list of TLV structures to print.
-     * @param level The current level of nesting.
+     * @param level         The current level of nesting.
+     * @param tlvCounter    An array to keep track of TLV numbers at each nesting level.
      */
-    private void printTlv(List<TlvStructure> tlvStructures, int level) {
-        String indent = "  ".repeat(level); // Indentation for the current level
+    private void printTlv(List<TlvStructure> tlvStructures, int level, int[] tlvCounter) {
+        String indent = "    ".repeat(level); // Отступы на основе уровня вложенности
 
         for (TlvStructure tlv : tlvStructures) {
             String tagClass = getClassDescription(tlv.getTagClass());
             String tagType = getTypeDescription(tlv.getTagType());
             int tagId = tlv.getTagNumber();
 
-            logger.info(String.format("%sTag (class: %s, type: %s, id: %d) [%02X]",
-                    indent, tagClass, tagType, tagId, tlv.getTag()));
-            logger.info(String.format("%sLength: %d",
-                    indent, tlv.getLength()));
-            logger.info(String.format("%sValue: %s",
-                    indent, bytesToHex(tlv.getValue())));
+            // Используем цветной вывод
+            logger.info(String.format("%s%sTLV #%d%s", indent, ANSI_BLUE, tlvCounter[level], ANSI_RESET));
+            logger.info(String.format("%s%s Tag (class: %s, kind: %s, id: %d) [%02X]%s",
+                    indent, ANSI_GREEN, tagClass.charAt(0), tagType.charAt(0), tagId, tlv.getTag(), ANSI_RESET));
+            logger.info(String.format("%s%s Length: %d [%02X]%s",
+                    indent, ANSI_YELLOW, tlv.getLength(), tlv.getLength(), ANSI_RESET));
 
-            // If TLV is a constructed type, parse nested TLV structures
-            if (tlv.getTagType() == 1) {
-                TlvParser nestedParser = new TlvParser();
-                List<TlvStructure> nestedTlv = nestedParser.parseTlv(tlv.getValue());
-                printTlv(nestedTlv, level + 1); // Recursively print nested TLV
+            if (tlv.getLength() > 0) {
+                if (tlv.getTagType() == 1) {
+                    // Если TLV конструктивный (constructed), выводим количество вложенных TLV
+                    TlvParser nestedParser = new TlvParser();
+                    List<TlvStructure> nestedTlv = nestedParser.parseTlv(tlv.getValue());
+                    logger.info(String.format("%s%s Value: (%d TLVs)%s", indent, ANSI_RED, nestedTlv.size(), ANSI_RESET));
+                    tlvCounter[level + 1] = 1; // Инициализируем счетчик для вложенного уровня
+                    printTlv(nestedTlv, level + 1, tlvCounter); // Рекурсивный вывод вложенных TLV
+                } else {
+                    // Для примитивных TLV отображаем значение
+                    logger.info(String.format("%s%s Value: [%s]%s", indent, ANSI_BLUE, bytesToHex(tlv.getValue()), ANSI_RESET));
+                }
+            } else {
+                logger.info(String.format("%s%s Value: []%s", indent, ANSI_RED, ANSI_RESET)); // Пустое значение для длины 0
             }
+
+            tlvCounter[level]++; // Увеличиваем счетчик для текущего уровня
         }
     }
 

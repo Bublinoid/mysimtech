@@ -16,14 +16,11 @@ public class TlvParserTest {
                 "300FA00B300980010781010D8301098100";
         TlvParser parser = new TlvParser();
 
-        // Чтение данных из строки (эмуляция содержимого файла)
         byte[] data = parser.hexStringToByteArray(fileContent);
         List<TlvStructure> tlvStructures = parser.parseTlv(data);
 
-        // Проверка структуры TLV
         assertEquals(2, tlvStructures.size());
 
-        // Проверка первого TLV
         TlvStructure tlv1 = tlvStructures.get(0);
         assertEquals(0x30, tlv1.getTag() & 0xFF);
         assertEquals(7, tlv1.getLength());
@@ -50,7 +47,6 @@ public class TlvParserTest {
         assertEquals(1, tlv1_1_1_1.getLength());
         assertEquals("00", bytesToHex(tlv1_1_1_1.getValue()));
 
-        // Проверка второго TLV
         TlvStructure tlv2 = tlvStructures.get(1);
         assertEquals(0x30, tlv2.getTag() & 0xFF);
         assertEquals(15, tlv2.getLength());
@@ -87,7 +83,7 @@ public class TlvParserTest {
         assertEquals(1, tlv2_1_1_3.getLength());
         assertEquals("09", bytesToHex(tlv2_1_1_3.getValue()));
 
-        // Проверка пустого TLV
+
         TlvStructure tlv2_2 = nestedTlv2.get(1);
         assertEquals(0x81, tlv2_2.getTag() & 0xFF);
         assertEquals(0, tlv2_2.getLength());
